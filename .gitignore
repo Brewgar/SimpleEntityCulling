@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# Fabric / Minecraft dev runs
+run/
+remappedSrc/
+
+# Logs
+*.log

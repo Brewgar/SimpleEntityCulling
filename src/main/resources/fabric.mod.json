@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "simpleentityculling",
+  "version": "${version}",
+  "name": "SimpleEntityCulling",
+  "description": "Skips rendering entities the player cannot actually see. Client-side only; entity simulation is never modified.",
+  "authors": [
+    "SimpleEntityCulling contributors"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.example.simpleentityculling.SimpleEntityCulling"
+    ],
+    "client": [
+      "com.example.simpleentityculling.client.SimpleEntityCullingClient"
+    ]
+  },
+  "mixins": [
+    "simpleentityculling.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.20.1",
+    "java": ">=17"
+  }
+}
