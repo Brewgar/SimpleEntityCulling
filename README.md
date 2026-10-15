@@ -1,69 +1,73 @@
 # SimpleEntityCulling
 
-A client-side rendering optimization mod for **Minecraft Java Edition 1.20.1 + Fabric**.
+A client-side Fabric mod for Minecraft Java 1.20.1 that stops your game from drawing things you can't see.
 
-**What it does:** entities that the player cannot actually see — outside the camera's view, behind walls, behind terrain, behind the player — are skipped *before their renderers execute*. They still simulate exactly as vanilla; only `EntityRenderer` work is suppressed.
+If an entity is outside your view, behind a wall, behind a hill, or behind you, the mod skips rendering it. The entity still exists and still behaves exactly like vanilla; your game just doesn't waste time drawing it. Only the entity rendering is skipped. Game logic is never touched.
 
-> This mod changes rendering only. It never alters game logic in any way.
+Think of it as your GPU finally getting permission to stop drawing the 500 chickens in that pen you aren't even looking at.
 
-## Supported versions
+## Versions
 
-| Component | Version |
-|---|---|
-| Minecraft | 1.20.1 |
-| Fabric Loader | 0.16.14+ |
-| Fabric API | 0.92.x+1.20.1 |
-| Mappings | Yarn `1.20.1+build.10` |
-| Java | 17+ |
+- Minecraft 1.20.1
+- Fabric Loader 0.16.14+
+- Fabric API 0.92.x+1.20.1
+- Yarn mappings `1.20.1+build.10`
+- Java 17+
+- Client-side only
 
-Client-side only
+## Install
 
-### Thread safety
-
-The worker thread never touches the world. Block opacity data along each candidate ray is captured on the client thread into immutable snapshots; the worker performs pure bit arithmetic on them. If the worker dies for any reason the engine permanently falls back to synchronous evaluation. Any unexpected error in the decision path fails open toward vanilla rendering.
-
-### Dense areas
-
-A lightweight 8×8×8 spatial histogram detects high-density cells (e.g. a 500-chicken pen). A stale dense cell gets one conservative 3×3×3 sample-grid probe using a fraction of the test budget. Only "clearly visible" and "clearly hidden" classifications are applied, and "hidden" applies solely to entities fully inside the cell inset by 1 block — anything ambiguous falls back to per-entity logic.
-
-## Installation
-
-1. Install the Fabric Loader for Minecraft 1.20.1.
+1. Install Fabric Loader for Minecraft 1.20.1.
 2. Drop `fabric-api` and `simpleentityculling-1.0.0.jar` into `.minecraft/mods`.
-3. Play. Defaults (BALANCED) require no setup.
+3. Play. The default profile needs no setup.
 
-Commands: `/sec profile <safe|balanced|aggressive>`, `/sec overlay`, `/sec visualize`, `/sec reload`.
+## Commands
 
-Profiles bundle internal tunables (test budgets, cache durations, thresholds, confirmation counts):
+`/sec profile <safe|balanced|aggressive>`, `/sec overlay`, `/sec visualize`, `/sec reload`
 
-- **SAFE** – correctness first: frequent revalidation, strict sampling.
-- **BALANCED** *(default)* – strong savings without visible artifacts.
-- **AGGRESSIVE** – maximal reuse for extreme entity counts.
+Profiles:
+
+- **SAFE**: correctness first. Rechecks often and samples strictly.
+- **BALANCED** (default): good savings without visible glitches.
+- **AGGRESSIVE**: reuses results as much as possible, for extreme entity counts.
 
 ## Debug overlay
 
-Shows considered/rendered/culled counts, cache hit rate, probe queue depth, average probe cost, worker mode, and dense-cell activity. Wireframe visualization colors entities green (visible), red (hidden), orange/yellow (probable), gray (unknown). Both default off.
-## Performance considerations
+`/sec overlay` shows how many entities were considered, rendered, and culled, plus cache hit rate, probe queue depth, average probe cost, worker mode, and dense-cell activity.
 
-The design goal is not maximum culling percentage but **net positive value**: every unit of CPU spent deciding visibility must save more rendering work than it costs. That is why the hot path is a few integer compares plus one hash lookup for cached entities, probes are strictly budgeted, far-away work is evicted first when queues fill, and everything beyond range or too close simply renders.
+`/sec visualize` draws wireframes around entities: green is visible, red is hidden, orange/yellow is probably one of those, gray is unknown. Both are off by default.
 
-## Known limitations (conservative by design)
+## How it stays fast
 
-- Non-opaque occluders (glass panes, leaves, fences…) are invisible to the occlusion test.
-- Very large entities partially clipped by terrain may occasionally remain rendered.
-- After fast camera swings, briefly-stale hidden entities re-render until refreshed (bounded grace window).
-- The mod does not cull block entities, item entities beyond vanilla rules, or particles.
+The goal isn't to cull as much as possible. It's to make sure that deciding what to hide costs less than drawing it would have. So the common path is a few integer comparisons and one hash lookup, the visibility checks have a strict budget, and anything too far away or too close just gets rendered.
+
+## How it stays safe
+
+- The worker thread never touches the world. Block opacity data is copied into immutable snapshots on the client thread, and the worker only does bit math on those.
+- If the worker dies for any reason, the mod permanently switches to doing the checks on the main thread.
+- Any unexpected error in the decision logic results in the entity being drawn normally.
+- For crowded areas, a lightweight 8×8×8 histogram spots dense cells. Only "clearly visible" and "clearly hidden" results are used there. Anything unclear falls back to per-entity checks.
+
+## Known limitations
+
+- Glass panes, leaves, fences, and other non-opaque blocks aren't treated as occluders.
+- Very large entities partly clipped by terrain may sometimes still render.
+- After a fast camera swing, an entity that was hidden may take a moment to show up again.
+- It doesn't cull block entities, item entities beyond vanilla rules, or particles.
 
 ## Compatibility
 
-Uses a single RETURN-phase injection into `EntityRenderDispatcher.shouldRender` and no rendering-subsystem replacements, which keeps it compatible with most optimization mods in practice. Mods that replace the entire entity dispatch pipeline may bypass or conflict with the hook; test combinations before relying on them. Report suspected conflicts via the issue tracker.
+It uses a single injection into `EntityRenderDispatcher.shouldRender` and doesn't replace any rendering systems, so it works with most optimization mods. Mods that replace the whole entity dispatch pipeline might bypass it or conflict with it. If you find a conflict, open an issue.
 
 ## Building
 
-```bash
+```
 ./gradlew build        # jar in build/libs/
 ./gradlew runClient    # dev environment launch
 ```
 
-See [BENCHMARKS.md](BENCHMARKS.md) for the benchmarking methodology and required metrics.
+Benchmarking details are in [BENCHMARKS.md](BENCHMARKS.md).
 
+## License
+
+MIT.
